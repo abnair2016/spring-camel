@@ -7,25 +7,26 @@ The purpose of this post is to replicate a specific use case that is listed in t
 
 ### Use-Case:
 Build a service that: 
-	- Builds the file path from where data is read from
-	- Reads data from the CSV file
-	- Converts CSV records into POJO
-	- Transforms data with custom code into POJO
-	- Stores the final results in a database
-	- Reads back the stored results from the database
+- Builds the file path from where data is read from
+- Reads data from the CSV file
+- Converts CSV records into POJO
+- Transforms data with custom code into POJO
+- Stores the final results in a database
+- Reads back the stored results from the database
   
 To resolve this use case, we would be using the following steps to create the Camel route:
-	1. Build the Input file URL using values specified in the _application.properties_ file
-	2. Use Transactions to ensure that if error occurs, the transaction is rolled back
-	3. Unmarshal the CSV data into POJO using Camel Bindy data format
-	4. Use the Splitter EIP to split and stream the messages
-  5. Use a Mapper bean to convert and transform the data
-	6. Use the Aggregator EIP to aggregate the POJOs into a List
-  7. Add a Predicate to limit the processing to a set number of records specified in the application.properties file
-	8. Wait for a timeour set in the application.properties file
-	9. Use a bean to persist the list of records into the database as a batch
-	10. Finally, use a bean's method to retrieve the stored results from the database
-  
+
+1. Build the Input file URL using values specified in the _application.properties_ file
+2. Use Transactions to ensure that if error occurs, the transaction is rolled back
+3. Unmarshal the CSV data into POJO using Camel Bindy data format
+4. Use the Splitter EIP to split and stream the messages
+5. Use a Mapper bean to convert and transform the data
+6. Use the Aggregator EIP to aggregate the POJOs into a List
+7. Add a Predicate to limit the processing to a set number of records specified in the application.properties file
+8. Wait for a timeout set in the application.properties file
+9. Use a bean to persist the list of records into the database as a batch
+10. Finally, use a bean's method to retrieve the stored results from the database
+
 ### Splitter EIP:
 ![Splitter:](http://www.enterpriseintegrationpatterns.com/img/Sequencer.gif)
 
