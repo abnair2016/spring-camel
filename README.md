@@ -5,6 +5,8 @@ A demo project that replicates a Spring Batch tutorial using Apache Camel within
 
 The purpose of this post is to replicate a specific use case that is listed in the [Spring Batch tutorial](https://spring.io/guides/gs/batch-processing), by reading CSV records and converting them into POJOs using Camel Bindy data format and applying [Enterprise Integration Patterns (EIPs)](http://www.enterpriseintegrationpatterns.com/patterns/messaging) like the Splitter and the Aggregator patterns to split, stream and batch insert records into and read results from an in-memory database respectively using Apache Camel route implementation within a Spring Boot application.
 
+**Note:** Implementing this use case with the _camel-batch_ component has been left out deliberately as that option is planned to be tackled in a follow-up post.
+
 ### Use-Case:
 Build a service that: 
 - Builds the file path from where data is read from
