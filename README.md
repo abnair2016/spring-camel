@@ -465,7 +465,7 @@ public class BatchSizePredicate implements Predicate {
 }
 ```
 
-_PersonRowMapper_ is a util class to map each row from the resulset from the database to a _Person_ object.
+_PersonRowMapper_ is a util class to map each row from the resultset from the database to a _Person_ object.
 
 #### src/main/java/com/demo/util/PersonRowMapper.java
 ```java
