@@ -1,18 +1,21 @@
 # spring-camel
-A demo project that replicates a Spring Batch tutorial using Apache Camel within a Spring Boot app.
+A demo project that replicates a Spring Batch tutorial using Apache Camel within a Spring Boot app. 
 
-## Self-learning Apache Camel through use-cases
+[Get the Source Code from GitHub](https://github.com/abnair2016/spring-camel)
 
 The purpose of this post is to replicate a specific use case that is listed in the [Spring Batch tutorial](https://spring.io/guides/gs/batch-processing), by reading CSV records and converting them into POJOs using Camel Bindy data format and applying [Enterprise Integration Patterns (EIPs)](http://www.enterpriseintegrationpatterns.com/patterns/messaging) like the Splitter and the Aggregator patterns to split, stream and batch insert records into and read results from an in-memory database respectively using Apache Camel route implementation within a Spring Boot application.
 
+**Note:** Implementing this use case with the _camel-batch_ component has been left out deliberately as that option is planned to be tackled in a follow-up post.
+
 ### Use-Case:
 Build a service that: 
-- Builds the file path from where data is read from
-- Reads data from the CSV file
-- Converts CSV records into POJO
-- Transforms data with custom code into POJO
-- Stores the final results in a database
-- Reads back the stored results from the database
+
+* Builds the file path from where data is read from
+* Reads data from the CSV file
+* Converts CSV records into POJO
+* Transforms data with custom code into POJO
+* Stores the final results in a database
+* Reads back the stored results from the database
   
 To resolve this use case, we would be using the following steps to create the Camel route:
 
@@ -22,8 +25,8 @@ To resolve this use case, we would be using the following steps to create the Ca
 4. Use the Splitter EIP to split and stream the messages
 5. Use a Mapper bean to convert and transform the data
 6. Use the Aggregator EIP to aggregate the POJOs into a List
-7. Add a Predicate to limit the processing to a set number of records specified in the application.properties file
-8. Wait for a timeout set in the application.properties file
+7. Add a Predicate to limit the processing to a set number of records specified in _application.properties_
+8. Wait for a timeout set in the _application.properties_ file
 9. Use a bean to persist the list of records into the database as a batch
 10. Finally, use a bean's method to retrieve the stored results from the database
 
@@ -43,6 +46,7 @@ To resolve this use case, we would be using the following steps to create the Ca
 ### Build with Maven:
 
 #### pom.xml
+
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -91,12 +95,17 @@ To resolve this use case, we would be using the following steps to create the Ca
             <groupId>commons-collections</groupId>
             <artifactId>commons-collections</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        
          
-		 <dependency>
+		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
-		 </dependency>
+		</dependency>
 	</dependencies>
 
 	<build>
@@ -107,7 +116,6 @@ To resolve this use case, we would be using the following steps to create the Ca
 			</plugin>
 		</plugins>
 	</build>
-
 </project>
 ```
 
@@ -116,6 +124,7 @@ To resolve this use case, we would be using the following steps to create the Ca
 Following the Spring Batch tutorial, write a SQL script to create a table to store the data.
 
 #### src/main/resources/schema-all.sql
+
 ```sql
 DROP TABLE people IF EXISTS;
 
@@ -132,6 +141,7 @@ Spring Boot runs schema-@@platform@@.sql automatically during startup.
 Similar to the Spring Batch demo, the sample CSV data contains a first name and last name on each row, separated by a comma. 
 
 #### src/main/resources/sample-data.csv
+
 ```csv
 fname,lname
 Jill,Doe
@@ -142,6 +152,7 @@ John,Doe
 ```
 
 #### src/main/resources/application.properties
+
 ```properties
 #### PROPERTIES FOR BATCH SIZE AND TIMEOUT ####
 camel.batch.max.records=100
@@ -164,6 +175,7 @@ select.sql=SELECT * FROM people
 The comma delimited format is handled by Apache Camel by unmarshalling using the Camel Bindy data format that loads each CSV row in the CSV file and map it to a _PersonCsvRecord_ POJO. The Csv Record skips the first line as the first line in the sample data in this demo is the title / column name.
 
 #### src/main/java/com/demo/model/PersonCsvRecord.java
+
 ```java
 package com.demo.model;
 
@@ -213,28 +225,91 @@ public class PersonCsvRecord {
 _Person_ is a model class to represent a row that will be persisted to the database. 
 
 #### src/main/java/com/demo/model/Person.java
+
 ```java
 package com.demo.model;
 
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.Table;
+
+@Entity
+@Table(name="Person")
 public class Person {
-    
-    private String lastName;
+
+    @Id
+    @GeneratedValue(strategy=GenerationType.AUTO)
+    private Long id;
+    @Column(length=20)
     private String firstName;
+    @Column(length=20, nullable=false)
+    private String lastName;
+    
+    public Person(){
+        
+    }
+    
+    public Person(Long id, String firstName, String lastName){
+        this.id = id;
+        this.firstName = firstName;
+        this.lastName = lastName;
+    }
+    
+    public Long getId() {
+        return id;
+    }
+    
+    public void setId(Long id) {
+        this.id = id;
+    }
+    
+    public String getFirstName() {
+        return this.firstName;
+    }
     
     public void setFirstName(String firstName) {
         this.firstName = firstName;
     }
-
-    public String getFirstName() {
-        return firstName;
-    }
-
+    
     public String getLastName() {
-        return lastName;
+        return this.lastName;
     }
-
+    
     public void setLastName(String lastName) {
         this.lastName = lastName;
+    }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((firstName == null) ? 0 : firstName.hashCode()) + ((lastName == null) ? 0 : lastName.hashCode());
+        return result;
+    }
+
+    @Override
+    public boolean equals(final Object obj) {
+        if (this == obj)
+            return true;
+        if (obj == null)
+            return false;
+        if (getClass() != obj.getClass())
+            return false;
+        final Person other = (Person) obj;
+        if (firstName == null) {
+            if (other.firstName != null)
+                return false;
+        } else if (!firstName.equals(other.firstName))
+            return false;
+        if (lastName == null) {
+            if (other.lastName != null)
+                return false;
+        } else if (!lastName.equals(other.lastName))
+            return false;
+        return true;
     }
     
     @Override
@@ -254,6 +329,7 @@ public class Person {
 Each of the above models has a purpose, the former one to hold each CSV record read into a _CsvRecordPerson_ POJO to be further mapped and processed into the latter model that represents a Person row that finally persists to the database. The mapper bean is called to map the _CsvRecordPerson_ to _Person_ and convert the first and last names to upper case respectively.
 
 #### src/main/java/com/demo/util/CsvRecordToPersonMapper.java
+
 ```java
 package com.demo.util;
 
@@ -283,6 +359,7 @@ public class CsvRecordToPersonMapper {
 _SpringCamelRoute_ is where the meat of the Camel route is defined for this use case.
 
 #### src/main/java/com/demo/route/SpringCamelRoute.java
+
 ```java
 package com.demo.route;
 
@@ -296,8 +373,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import com.demo.dao.PersonRepository;
 import com.demo.model.PersonCsvRecord;
+import com.demo.service.PersonServiceImpl;
 import com.demo.util.ArrayListAggregationStrategy;
 import com.demo.util.BatchSizePredicate;
 import com.demo.util.CsvRecordToPersonMapper;
@@ -309,7 +386,7 @@ public class SpringCamelRoute extends RouteBuilder {
     private CsvRecordToPersonMapper mapper;
     
     @Autowired
-    private PersonRepository personRepository;
+    private PersonServiceImpl personService;
     
     @Value("${camel.batch.timeout}")
     private long batchTimeout;
@@ -347,8 +424,8 @@ public class SpringCamelRoute extends RouteBuilder {
             .aggregate(constant(true), new ArrayListAggregationStrategy())
             .completionPredicate(new BatchSizePredicate(maxRecords))
             .completionTimeout(batchTimeout)
-            .bean(personRepository)
-            .to("bean:personRepository?method=getPeople")
+            .bean(personService)
+            .to("bean:personService?method=findAll")
             .end();
         
     }
@@ -376,6 +453,7 @@ public class SpringCamelRoute extends RouteBuilder {
 _ArrayListAggregationStrategy_ is an Aggregation Strategy used for aggregating the model into a List of _Person_ objects.
 
 #### src/main/java/com/demo/util/ArrayListAggregationStrategy.java
+
 ```java
 package com.demo.util;
 
@@ -409,6 +487,7 @@ public class ArrayListAggregationStrategy implements AggregationStrategy {
 _SpringCamelDemoUtil_ is a final util class to hold the project constants in one place.
 
 #### src/main/java/com/demo/util/SpringCamelDemoUtil.java
+
 ```java
 package com.demo.util;
 
@@ -431,6 +510,7 @@ public final class SpringCamelDemoUtil {
 _BatchSizePredicate_ is a util class to limit the Batch size to a max number of records as specified in the _application.properties_ file.
 
 #### src/main/java/com/demo/util/BatchSizePredicate.java
+
 ```java
 package com.demo.util;
 
@@ -463,9 +543,10 @@ public class BatchSizePredicate implements Predicate {
 }
 ```
 
-_PersonRowMapper_ is a util class to map each row from the resulset from the database to a _Person_ object.
+_PersonRowMapper_ is a util class to map each row from the resultset from the database to a _Person_ object.
 
 #### src/main/java/com/demo/util/PersonRowMapper.java
+
 ```java
 package com.demo.util;
 
@@ -493,19 +574,69 @@ public class PersonRowMapper implements RowMapper<Person>{
 
 ### Repository
 
-_PersonRepository_ is where the database operations are defined for the use case.
+_PersonRepository_ extends CrudRepository where the pre-defined database operations are used for this use case.
 
-#### src/main/java/com/demo/dao/PersonRepository.java
+#### src/main/java/com/demo/repository/PersonRepository.java
+
+```java
+package com.demo.repository;
+
+import org.springframework.data.repository.CrudRepository;
+
+import com.demo.model.Person;
+
+public interface PersonRepository extends CrudRepository<Person, Long> {
+
+}
+```
+
+### Data Access Objects
+
+_PersonDAO_ is an interface exposed to the Service class
+
+#### src/main/java/com/demo/dao/PersonDAO.java
+
+```java
+package com.demo.dao;
+
+import java.util.Collection;
+import java.util.List;
+
+import com.demo.model.Person;
+
+public interface PersonDAO {
+
+    Collection<Person> findAll();
+
+    Person getPersonById(Long id);
+
+    void removePerson(Long id);
+
+    Person save(final Person person);
+    
+    void save(final List<Person> people);
+
+    Person update(final Person person);
+
+}
+```
+
+_HsqlPersonDAOImpl_ is the hsql implementation of the _PersonDAO_ interface. This approach potentially allows other DB implementations if required.
+
+#### src/main/java/com/demo/dao/HsqlPersonDAOImpl.java
+
 ```java
 package com.demo.dao;
 
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.Collection;
 import java.util.List;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -513,13 +644,18 @@ import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.demo.model.Person;
+import com.demo.repository.PersonRepository;
 import com.demo.util.PersonRowMapper;
 
 @Repository
-public class PersonRepository {
+@Qualifier("hsqlrepo")
+public class HsqlPersonDAOImpl implements PersonDAO {
 
-    private static final Logger log = LoggerFactory.getLogger(PersonRepository.class);
+    private static final Logger log = LoggerFactory.getLogger(HsqlPersonDAOImpl.class);
 
+    @Autowired
+    private PersonRepository personRepository;
+    
     @Autowired
     private JdbcTemplate jdbcTemplate;
     
@@ -529,6 +665,34 @@ public class PersonRepository {
     @Value("${select.sql}")
     private String selectSQLQuery;
     
+    @Override
+    @Transactional(readOnly=true)
+    public Collection<Person> findAll() {
+        log.info("!!! JOB FINISHED! Time to verify the results", log);
+        List<Person> people = jdbcTemplate.query(selectSQLQuery, new PersonRowMapper());
+        log.info("Found " + people.size() + " people in database!");
+        people.forEach(person -> log.info("Found <" + person + "> in the database."));
+        return people;
+    }
+    
+    @Override
+    @Transactional(readOnly=true)
+    public Person getPersonById(Long id){
+        return personRepository.findOne(id);
+    }
+    
+    @Override
+    public void removePerson(Long id){
+        personRepository.delete(id);
+    }
+    
+    @Override
+    public Person save(Person person) {
+        Person savedPerson = personRepository.save(person);
+        return savedPerson;
+    }
+    
+    @Override
     @Transactional
     public void save(final List<Person> people) {
         
@@ -549,15 +713,104 @@ public class PersonRepository {
         });
         log.info("Saved " + people.size() + " records ...");
     }
-    
-    @Transactional(readOnly=true)
-    public List<Person> getPeople(){
-        log.info("!!! JOB FINISHED! Time to verify the results", log);
-        List<Person> persons = jdbcTemplate.query(selectSQLQuery, new PersonRowMapper());
-        log.info("Found " + persons.size() + " people in database!");
-        persons.forEach(person -> log.info("Found <" + person + "> in the database."));
-        return persons;
+
+    @Override
+    public Person update(Person person) {
+        Person persistedPerson = getPersonById(person.getId());
+        if(persistedPerson == null){
+            return null;
+        }
+        
+        Person updatedPerson = personRepository.save(person);
+        return updatedPerson;
     }
+
+}
+```
+
+### Service classes
+
+The Service interface and implementation has been added to loosely couple the DB related implementations from the Camel route
+
+#### src/main/java/com/demo/service/PersonService.java
+
+```java
+package com.demo.service;
+
+import java.util.Collection;
+import java.util.List;
+
+import com.demo.model.Person;
+
+public interface PersonService {
+    
+    Collection<Person> findAll();
+    
+    Person getPersonById(Long id);
+
+    void removePerson(Long id);
+    
+    Person save(Person person);
+
+    void save(List<Person> people);
+    
+    Person update(Person person);
+
+}
+```
+
+#### src/main/java/com/demo/service/PersonServiceImpl.java
+
+```java
+package com.demo.service;
+
+import java.util.Collection;
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.stereotype.Service;
+
+import com.demo.dao.PersonDAO;
+import com.demo.model.Person;
+
+@Service("personService")
+public class PersonServiceImpl implements PersonService {
+
+    @Autowired
+    @Qualifier("hsqlrepo")
+    private PersonDAO personDAO;
+    
+    @Override
+    public Collection<Person> findAll() {
+        return personDAO.findAll();
+    }
+
+    @Override
+    public Person getPersonById(Long id) {
+        return personDAO.getPersonById(id);
+    }
+    
+    @Override
+    public void removePerson(Long id) {
+        personDAO.removePerson(id);
+    }
+
+    @Override
+    public Person save(Person person) {
+        return personDAO.save(person); 
+    }
+
+    @Override
+    public void save(List<Person> people) {
+        personDAO.save(people);        
+    }
+    
+    @Override
+    public Person update(Person person) {
+        return personDAO.update(person); 
+    }
+
 }
 ```
 
@@ -566,6 +819,7 @@ public class PersonRepository {
 _SpringCamelApplication_ is the main executable class where everything is packaged in a single, executable JAR file, driven by a good old Java main() method.
 
 #### src/main/java/com/demo/SpringCamelApplication.java
+
 ```java
 package com.demo;
 
@@ -588,6 +842,7 @@ public class SpringCamelApplication {
 ```
 
 ### Output
+
 The output is similar to the Spring Batch tutorial where each person is transformed and saved to the database and the query results from the database is output as well.
 
 ```output
@@ -607,4 +862,5 @@ Found <[PERSON:: First Name: JOHN; Last Name: DOE]> in the database.
 ```
 
 ### Summary
+
 Congratulations! You built a batch job that ingested data from a spreadsheet, processed it, and wrote it to a database using Apache Camel within a Spring Boot Application.

@@ -10,8 +10,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import com.demo.dao.PersonRepository;
 import com.demo.model.PersonCsvRecord;
+import com.demo.service.PersonServiceImpl;
 import com.demo.util.ArrayListAggregationStrategy;
 import com.demo.util.BatchSizePredicate;
 import com.demo.util.CsvRecordToPersonMapper;
@@ -23,7 +23,7 @@ public class SpringCamelRoute extends RouteBuilder {
     private CsvRecordToPersonMapper mapper;
     
     @Autowired
-    private PersonRepository personRepository;
+    private PersonServiceImpl personService;
     
     @Value("${camel.batch.timeout}")
     private long batchTimeout;
@@ -61,8 +61,8 @@ public class SpringCamelRoute extends RouteBuilder {
             .aggregate(constant(true), new ArrayListAggregationStrategy())
             .completionPredicate(new BatchSizePredicate(maxRecords))
             .completionTimeout(batchTimeout)
-            .bean(personRepository)
-            .to("bean:personRepository?method=getPeople")
+            .bean(personService)
+            .to("bean:personService?method=findAll")
             .end();
         
     }
