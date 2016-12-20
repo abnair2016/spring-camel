@@ -1,4 +1,4 @@
-# spring-camel
+# Apache Camel version of a Spring Batch Tutorial
 A demo project that replicates a Spring Batch tutorial using Apache Camel within a Spring Boot app. 
 
 [Get the Source Code from GitHub](https://github.com/abnair2016/spring-camel)
