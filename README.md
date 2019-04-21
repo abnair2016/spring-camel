@@ -38,8 +38,8 @@ To resolve this use case, we would be using the following steps to create the Ca
   
 
 ### Versions used:
-  * Spring Boot: 1.4.1.RELEASE
-  * Apache Camel: 2.18.0
+  * Spring Boot: 2.1.0.RELEASE
+  * Apache Camel: 2.23.2
   * Maven: 3.0+
   * Java: 1.8
 
@@ -69,7 +69,7 @@ To resolve this use case, we would be using the following steps to create the Ca
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<java.version>1.8</java.version>
-		<camel.version>2.18.0</camel.version>
+		<camel.version>2.23.2</camel.version>
 		<lombok.version>1.18.4</lombok.version>
 	</properties>
 
