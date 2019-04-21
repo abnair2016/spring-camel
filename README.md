@@ -5,7 +5,7 @@ A demo project that replicates a Spring Batch tutorial using Apache Camel within
 
 The purpose of this post is to replicate a specific use case that is listed in the [Spring Batch tutorial](https://spring.io/guides/gs/batch-processing), by reading CSV records and converting them into POJOs using Camel Bindy data format and applying [Enterprise Integration Patterns (EIPs)](http://www.enterpriseintegrationpatterns.com/patterns/messaging) like the Splitter and the Aggregator patterns to split, stream and batch insert records into and read results from an in-memory database respectively using Apache Camel route implementation within a Spring Boot application.
 
-**Note:** Implementing this use case with the _camel-batch_ component has been left out deliberately as that option is planned to be tackled in a follow-up post.
+**Note:** Implementing this use case with the _camel-spring-batch_ component has been left out deliberately. If you are looking for the _camel-spring-batch_ component implementation, please check out the [Spring Boot demo application showing Camel and Spring Batch](https://github.com/gzurowski/camel-spring-batch-demo) authored by [Gregor Zurowski](https://github.com/gzurowski).
 
 ### Use-Case:
 Build a service that: 
@@ -61,7 +61,7 @@ To resolve this use case, we would be using the following steps to create the Ca
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>1.4.1.RELEASE</version>
+		<version>2.1.0.RELEASE</version>
 		<relativePath/>
 	</parent>
 
@@ -69,36 +69,39 @@ To resolve this use case, we would be using the following steps to create the Ca
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<java.version>1.8</java.version>
-        <camel.version>2.18.0</camel.version> 
+		<camel.version>2.18.0</camel.version>
+		<lombok.version>1.18.4</lombok.version>
 	</properties>
 
 	<dependencies>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-batch</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.camel</groupId>
-            <artifactId>camel-spring-boot</artifactId>
-            <version>${camel.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.camel</groupId>
-            <artifactId>camel-bindy</artifactId>
-            <version>${camel.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.hsqldb</groupId>
-            <artifactId>hsqldb</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>commons-collections</groupId>
-            <artifactId>commons-collections</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-jpa</artifactId>
-        </dependency>
+		<dependency>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-starter-batch</artifactId>
+		</dependency>
+		<dependency>
+				<groupId>org.apache.camel</groupId>
+				<artifactId>camel-spring-boot</artifactId>
+				<version>${camel.version}</version>
+		</dependency>
+		<dependency>
+				<groupId>org.apache.camel</groupId>
+				<artifactId>camel-bindy</artifactId>
+				<version>${camel.version}</version>
+		</dependency>
+		<dependency>
+				<groupId>org.hsqldb</groupId>
+				<artifactId>hsqldb</artifactId>
+		</dependency>
+		<dependency>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-starter-data-jpa</artifactId>
+		</dependency>
+		<dependency>
+				<groupId>org.projectlombok</groupId>
+				<artifactId>lombok</artifactId>
+				<version>${lombok.version}</version>
+				<scope>provided</scope>
+		</dependency>
         
          
 		<dependency>
@@ -168,6 +171,8 @@ file.type=.*.csv
 #### PROPERTIES TO BUILD SQL QUERIES ####
 batch.insert.sql=INSERT INTO people(first_name, last_name) VALUES(?,?)
 select.sql=SELECT * FROM people
+
+spring.jpa.hibernate.ddl-auto=create
 ```
 
 ### Create a CsvRecord using Camel Bindy
@@ -179,43 +184,25 @@ The comma delimited format is handled by Apache Camel by unmarshalling using the
 ```java
 package com.demo.model;
 
+import lombok.Data;
 import org.apache.camel.dataformat.bindy.annotation.CsvRecord;
 import org.apache.camel.dataformat.bindy.annotation.DataField;
 import org.springframework.stereotype.Component;
 
 @Component
-@CsvRecord(separator=",", skipFirstLine=true, crlf="WINDOWS")
+@CsvRecord(separator = ",", skipFirstLine = true)
+@Data
 public class PersonCsvRecord {
 
-    @DataField(pos=2, required=true, trim=true)
+    @DataField(pos = 2, required = true, trim = true)
     private String lastName;
-    @DataField(pos=1, required=false, trim=true, defaultValue=" ")
+    @DataField(pos = 1, trim = true, defaultValue = " ")
     private String firstName;
-    
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
-    }
-
-    public String getFirstName() {
-        return firstName;
-    }
-
-    public String getLastName() {
-        return lastName;
-    }
-
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
-    }
 
     @Override
     public String toString() {
-        return new StringBuilder().append("[CSV RECORD:: First Name: ")
-                .append(this.firstName)
-                .append("; Last Name: ")
-                .append(this.lastName)
-                .append("]")
-                .toString();
+        return "[CSV RECORD:: First Name: " + this.firstName +
+                "; Last Name: " + this.lastName + "]";
     }
 }
 ```
@@ -229,97 +216,37 @@ _Person_ is a model class to represent a row that will be persisted to the datab
 ```java
 package com.demo.model;
 
-import javax.persistence.Column;
-import javax.persistence.Entity;
-import javax.persistence.GeneratedValue;
-import javax.persistence.GenerationType;
-import javax.persistence.Id;
-import javax.persistence.Table;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import javax.persistence.*;
 
 @Entity
-@Table(name="people")
+@Table(name = "people")
+@Data
+@NoArgsConstructor
+@Builder
 public class Person {
 
     @Id
-    @GeneratedValue(strategy=GenerationType.AUTO)
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @Column(length=20)
+    @Column(length = 20)
     private String firstName;
-    @Column(length=20, nullable=false)
+    @Column(length = 20, nullable = false)
     private String lastName;
-    
-    public Person(){
-        
-    }
-    
-    public Person(Long id, String firstName, String lastName){
+
+    public Person(Long id, String firstName, String lastName) {
         this.id = id;
         this.firstName = firstName;
         this.lastName = lastName;
     }
-    
-    public Long getId() {
-        return id;
-    }
-    
-    public void setId(Long id) {
-        this.id = id;
-    }
-    
-    public String getFirstName() {
-        return this.firstName;
-    }
-    
-    public void setFirstName(String firstName) {
-        this.firstName = firstName;
-    }
-    
-    public String getLastName() {
-        return this.lastName;
-    }
-    
-    public void setLastName(String lastName) {
-        this.lastName = lastName;
-    }
 
-    @Override
-    public int hashCode() {
-        final int prime = 31;
-        int result = 1;
-        result = prime * result + ((firstName == null) ? 0 : firstName.hashCode()) + ((lastName == null) ? 0 : lastName.hashCode());
-        return result;
-    }
-
-    @Override
-    public boolean equals(final Object obj) {
-        if (this == obj)
-            return true;
-        if (obj == null)
-            return false;
-        if (getClass() != obj.getClass())
-            return false;
-        final Person other = (Person) obj;
-        if (firstName == null) {
-            if (other.firstName != null)
-                return false;
-        } else if (!firstName.equals(other.firstName))
-            return false;
-        if (lastName == null) {
-            if (other.lastName != null)
-                return false;
-        } else if (!lastName.equals(other.lastName))
-            return false;
-        return true;
-    }
-    
     @Override
     public String toString() {
-        return new StringBuilder().append("[PERSON:: First Name: ")
-                .append(this.firstName)
-                .append("; Last Name: ")
-                .append(this.lastName)
-                .append("]")
-                .toString();
+        return "[PERSON:: First Name: " + this.firstName +
+                "; Last Name: " + this.lastName + "]";
     }
 }
 ```
@@ -333,23 +260,21 @@ Each of the above models has a purpose, the former one to hold each CSV record r
 ```java
 package com.demo.util;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
-
 import com.demo.model.Person;
 import com.demo.model.PersonCsvRecord;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
 
 @Component
+@Slf4j
 public class CsvRecordToPersonMapper {
-    
-    private static Logger log = LoggerFactory.getLogger(CsvRecordToPersonMapper.class);
-    
-    public Person convertAndTransform(PersonCsvRecord csvRecord){
-        Person person = new Person();
-        person.setFirstName(csvRecord.getFirstName().trim().toUpperCase());
-        person.setLastName(csvRecord.getLastName().trim().toUpperCase());
-        log.info("Converting (" + csvRecord + ") into (" + person + ")", log);
+
+    public Person convertAndTransform(PersonCsvRecord csvRecord) {
+        final Person person = Person.builder()
+                .firstName(csvRecord.getFirstName().trim().toUpperCase())
+                .lastName(csvRecord.getLastName().trim().toUpperCase())
+                .build();
+        log.info("Converting ({}) into ({})", csvRecord, person);
         return person;
     }
 }
@@ -363,88 +288,75 @@ _SpringCamelRoute_ is where the meat of the Camel route is defined for this use 
 ```java
 package com.demo.route;
 
-import static com.demo.util.SpringCamelDemoUtil.QUESTION_MARK;
-import static com.demo.util.SpringCamelDemoUtil.AMPERSAND;
-import static com.demo.util.SpringCamelDemoUtil.COLON;
-
-import org.apache.camel.builder.RouteBuilder;
-import org.apache.camel.dataformat.bindy.csv.BindyCsvDataFormat;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Component;
-
 import com.demo.model.PersonCsvRecord;
 import com.demo.service.PersonServiceImpl;
 import com.demo.util.ArrayListAggregationStrategy;
 import com.demo.util.BatchSizePredicate;
 import com.demo.util.CsvRecordToPersonMapper;
+import lombok.RequiredArgsConstructor;
+import org.apache.camel.builder.RouteBuilder;
+import org.apache.camel.dataformat.bindy.csv.BindyCsvDataFormat;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 @Component
+@RequiredArgsConstructor
 public class SpringCamelRoute extends RouteBuilder {
 
-    @Autowired
-    private CsvRecordToPersonMapper mapper;
-    
-    @Autowired
-    private PersonServiceImpl personService;
-    
+    private static final String QUESTION_MARK = "?";
+    private static final String AMPERSAND = "&";
+    private static final String COLON = ":";
+
+    private final CsvRecordToPersonMapper mapper;
+
+    private final PersonServiceImpl personService;
+
     @Value("${camel.batch.timeout}")
     private long batchTimeout;
-    
+
     @Value("${camel.batch.max.records}")
     private int maxRecords;
-    
+
     @Value("${source.type}")
     private String sourceType;
-    
+
     @Value("${source.location}")
     private String sourceLocation;
-    
+
     @Value("${noop.flag}")
     private boolean isNoop;
-    
+
     @Value("${recursive.flag}")
     private boolean isRecursive;
-    
+
     @Value("${file.type}")
     private String fileType;
-    
+
     @Override
-    public void configure() throws Exception {
-        
-        BindyCsvDataFormat bindyCsvDataFormat = new BindyCsvDataFormat(PersonCsvRecord.class);
+    public void configure() {
+
+        final BindyCsvDataFormat bindyCsvDataFormat = new BindyCsvDataFormat(PersonCsvRecord.class);
         bindyCsvDataFormat.setLocale("default");
-        
+
         from(buildFileUrl())
-            .transacted()
-            .unmarshal(bindyCsvDataFormat)
-            .split(body())
-            .streaming()
-            .bean(mapper, "convertAndTransform")
-            .aggregate(constant(true), new ArrayListAggregationStrategy())
-            .completionPredicate(new BatchSizePredicate(maxRecords))
-            .completionTimeout(batchTimeout)
-            .bean(personService)
-            .to("bean:personService?method=findAll")
-            .end();
-        
+                .transacted()
+                .unmarshal(bindyCsvDataFormat)
+                .split(body())
+                .streaming()
+                .bean(mapper, "convertAndTransform")
+                .aggregate(constant(true), new ArrayListAggregationStrategy())
+                .completionPredicate(new BatchSizePredicate(maxRecords))
+                .completionTimeout(batchTimeout)
+                .bean(personService)
+                .to("bean:personService?method=findAll")
+                .end();
     }
-    
-    private String buildFileUrl(){
-        StringBuilder fileUrlBuilder = new StringBuilder();
-        return fileUrlBuilder.append(sourceType)
-                        .append(COLON)
-                        .append(sourceLocation)
-                        .append(QUESTION_MARK)
-                        .append("noop=")
-                        .append(isNoop)
-                        .append(AMPERSAND)
-                        .append("recursive=")
-                        .append(isRecursive)
-                        .append(AMPERSAND)
-                        .append("include=")
-                        .append(fileType)
-                        .toString();
+
+    private String buildFileUrl() {
+        return sourceType + COLON + sourceLocation +
+                QUESTION_MARK + "noop=" + isNoop +
+                AMPERSAND + "recursive=" + isRecursive +
+                AMPERSAND + "include=" + fileType;
     }
 }
 ```
@@ -457,53 +369,29 @@ _ArrayListAggregationStrategy_ is an Aggregation Strategy used for aggregating t
 ```java
 package com.demo.util;
 
-import java.util.ArrayList;
-
 import org.apache.camel.Exchange;
 import org.apache.camel.processor.aggregate.AggregationStrategy;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class ArrayListAggregationStrategy implements AggregationStrategy {
-    
+
     @Override
     public Exchange aggregate(Exchange oldExchange, Exchange newExchange) {
         Object newBody = newExchange.getIn().getBody();
-        ArrayList<Object> list = null;
+        List<Object> list;
         if (oldExchange == null) {
-                list = new ArrayList<Object>();
-                list.add(newBody);
-                newExchange.getIn().setBody(list);
-                return newExchange;
+            list = new ArrayList<>();
+            list.add(newBody);
+            newExchange.getIn().setBody(list);
+            return newExchange;
         } else {
-                list = oldExchange.getIn().getBody(ArrayList.class);
-                list.add(newBody);
-                return oldExchange;
+            list = oldExchange.getIn().getBody(ArrayList.class);
+            list.add(newBody);
+            return oldExchange;
         }
     }
-}
-```
-
-### Util classes
-
-_SpringCamelDemoUtil_ is a final util class to hold the project constants in one place.
-
-#### src/main/java/com/demo/util/SpringCamelDemoUtil.java
-
-```java
-package com.demo.util;
-
-public final class SpringCamelDemoUtil {
-    
-    private SpringCamelDemoUtil() {
-        //restrict instantiation
-    }
-    
-    public static final String QUESTION_MARK = "?";
-    public static final String AMPERSAND = "&";
-    public static final String COLON = ":";
-    
-    public static final String FIRST_NAME = "first_name";
-    public static final String LAST_NAME = "last_name";
-    
 }
 ```
 
@@ -514,28 +402,26 @@ _BatchSizePredicate_ is a util class to limit the Batch size to a max number of 
 ```java
 package com.demo.util;
 
+import org.apache.camel.Exchange;
+import org.apache.camel.Predicate;
+import org.springframework.util.CollectionUtils;
+
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.camel.Exchange;
-import org.apache.camel.Predicate;
-import org.apache.commons.collections.CollectionUtils;
-
 public class BatchSizePredicate implements Predicate {
 
-    public int size;
+    private final int size;
 
     public BatchSizePredicate(int size) {
         this.size = size;
     }
-    
+
     @Override
     public boolean matches(Exchange exchange) {
         if (exchange != null) {
-            List<Object> list = exchange.getIn().getBody(ArrayList.class);
-            if (CollectionUtils.isNotEmpty(list) && list.size() == size) {
-                return true;
-            }
+            final List<Object> list = exchange.getIn().getBody(ArrayList.class);
+            return !CollectionUtils.isEmpty(list) && list.size() == size;
         }
         return false;
     }
@@ -550,24 +436,22 @@ _PersonRowMapper_ is a util class to map each row from the resultset from the da
 ```java
 package com.demo.util;
 
-import static com.demo.util.SpringCamelDemoUtil.FIRST_NAME;
-import static com.demo.util.SpringCamelDemoUtil.LAST_NAME;
+import com.demo.model.Person;
+import org.springframework.jdbc.core.RowMapper;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-import org.springframework.jdbc.core.RowMapper;
-
-import com.demo.model.Person;
-
-public class PersonRowMapper implements RowMapper<Person>{
+public class PersonRowMapper implements RowMapper<Person> {
+    private static final String FIRST_NAME = "first_name";
+    private static final String LAST_NAME = "last_name";
 
     @Override
     public Person mapRow(ResultSet rs, int rowNum) throws SQLException {
-        Person person = new Person();
-        person.setFirstName((String)rs.getString(FIRST_NAME));
-        person.setLastName((String)rs.getString(LAST_NAME));
-        return person;
+        return Person.builder()
+                .firstName(rs.getString(FIRST_NAME))
+                .lastName(rs.getString(LAST_NAME))
+                .build();
     }
 }
 ```
@@ -581,12 +465,10 @@ _PersonRepository_ extends CrudRepository where the pre-defined database operati
 ```java
 package com.demo.repository;
 
+import com.demo.model.Person;
 import org.springframework.data.repository.CrudRepository;
 
-import com.demo.model.Person;
-
 public interface PersonRepository extends CrudRepository<Person, Long> {
-
 }
 ```
 
@@ -599,10 +481,10 @@ _PersonDAO_ is an interface exposed to the Service class
 ```java
 package com.demo.dao;
 
+import com.demo.model.Person;
+
 import java.util.Collection;
 import java.util.List;
-
-import com.demo.model.Person;
 
 public interface PersonDAO {
 
@@ -613,7 +495,7 @@ public interface PersonDAO {
     void removePerson(Long id);
 
     Person save(final Person person);
-    
+
     void save(final List<Person> people);
 
     Person update(final Person person);
@@ -628,14 +510,11 @@ _HsqlPersonDAOImpl_ is the hsql implementation of the _PersonDAO_ interface. Thi
 ```java
 package com.demo.dao;
 
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
-import java.util.Collection;
-import java.util.List;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.demo.model.Person;
+import com.demo.repository.PersonRepository;
+import com.demo.util.PersonRowMapper;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.core.BatchPreparedStatementSetter;
@@ -643,86 +522,85 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.demo.model.Person;
-import com.demo.repository.PersonRepository;
-import com.demo.util.PersonRowMapper;
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
+import java.util.Collection;
+import java.util.List;
 
 @Repository
 @Qualifier("hsqlrepo")
+@Slf4j
+@RequiredArgsConstructor
 public class HsqlPersonDAOImpl implements PersonDAO {
 
-    private static final Logger log = LoggerFactory.getLogger(HsqlPersonDAOImpl.class);
+    private final PersonRepository personRepository;
 
-    @Autowired
-    private PersonRepository personRepository;
-    
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
-    
+    private final JdbcTemplate jdbcTemplate;
+
     @Value("${batch.insert.sql}")
     private String batchInsertSQLQuery;
-    
+
     @Value("${select.sql}")
     private String selectSQLQuery;
-    
+
     @Override
-    @Transactional(readOnly=true)
+    @Transactional(readOnly = true)
     public Collection<Person> findAll() {
-        log.info("!!! JOB FINISHED! Time to verify the results", log);
-        List<Person> people = jdbcTemplate.query(selectSQLQuery, new PersonRowMapper());
-        log.info("Found " + people.size() + " people in database!");
-        people.forEach(person -> log.info("Found <" + person + "> in the database."));
+        log.info("!!! JOB FINISHED! Time to verify the results");
+        final List<Person> people = jdbcTemplate.query(selectSQLQuery, new PersonRowMapper());
+        log.info("Found {} people in database!", people.size());
+        people.forEach(person -> log.info("Found <{}> in the database.", person));
         return people;
     }
-    
+
     @Override
-    @Transactional(readOnly=true)
-    public Person getPersonById(Long id){
-        return personRepository.findOne(id);
+    @Transactional(readOnly = true)
+    public Person getPersonById(Long id) {
+        return personRepository.findById(id).orElse(null);
     }
-    
+
     @Override
-    public void removePerson(Long id){
-        personRepository.delete(id);
+    @Transactional(readOnly = true)
+    public void removePerson(Long id) {
+        personRepository.delete(this.getPersonById(id));
     }
-    
+
     @Override
     public Person save(Person person) {
-        Person savedPerson = personRepository.save(person);
-        return savedPerson;
+        return personRepository.save(person);
     }
-    
+
     @Override
     @Transactional
     public void save(final List<Person> people) {
-        
+
         jdbcTemplate.batchUpdate(batchInsertSQLQuery, new BatchPreparedStatementSetter() {
-            
+
             @Override
             public void setValues(PreparedStatement ps, int i) throws SQLException {
-                Person person = people.get(i);
+                final Person person = people.get(i);
                 ps.setString(1, person.getFirstName());
                 ps.setString(2, person.getLastName());
-                
+
             }
-            
+
             @Override
             public int getBatchSize() {
                 return people.size();
             }
         });
-        log.info("Saved " + people.size() + " records ...");
+        log.info("Saved {} records ...", people.size());
     }
 
     @Override
+    @Transactional
     public Person update(Person person) {
-        Person persistedPerson = getPersonById(person.getId());
-        if(persistedPerson == null){
+        final Person persistedPerson = getPersonById(person.getId());
+        if (persistedPerson == null) {
             return null;
         }
-        
-        Person updatedPerson = personRepository.save(person);
-        return updatedPerson;
+
+        return personRepository.save(person);
     }
 
 }
@@ -737,23 +615,23 @@ The Service interface and implementation has been added to loosely couple the DB
 ```java
 package com.demo.service;
 
+import com.demo.model.Person;
+
 import java.util.Collection;
 import java.util.List;
 
-import com.demo.model.Person;
-
 public interface PersonService {
-    
+
     Collection<Person> findAll();
-    
+
     Person getPersonById(Long id);
 
     void removePerson(Long id);
-    
+
     Person save(Person person);
 
     void save(List<Person> people);
-    
+
     Person update(Person person);
 
 }
@@ -764,23 +642,22 @@ public interface PersonService {
 ```java
 package com.demo.service;
 
-import java.util.Collection;
-import java.util.List;
-
-import org.springframework.beans.factory.annotation.Autowired;
+import com.demo.dao.PersonDAO;
+import com.demo.model.Person;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
-import com.demo.dao.PersonDAO;
-import com.demo.model.Person;
+import java.util.Collection;
+import java.util.List;
 
 @Service("personService")
+@RequiredArgsConstructor
 public class PersonServiceImpl implements PersonService {
 
-    @Autowired
     @Qualifier("hsqlrepo")
-    private PersonDAO personDAO;
-    
+    private final PersonDAO personDAO;
+
     @Override
     public Collection<Person> findAll() {
         return personDAO.findAll();
@@ -790,7 +667,7 @@ public class PersonServiceImpl implements PersonService {
     public Person getPersonById(Long id) {
         return personDAO.getPersonById(id);
     }
-    
+
     @Override
     public void removePerson(Long id) {
         personDAO.removePerson(id);
@@ -798,17 +675,17 @@ public class PersonServiceImpl implements PersonService {
 
     @Override
     public Person save(Person person) {
-        return personDAO.save(person); 
+        return personDAO.save(person);
     }
 
     @Override
     public void save(List<Person> people) {
-        personDAO.save(people);        
+        personDAO.save(people);
     }
-    
+
     @Override
     public Person update(Person person) {
-        return personDAO.update(person); 
+        return personDAO.update(person);
     }
 
 }
@@ -836,7 +713,7 @@ public class SpringCamelApplication {
 
         CamelSpringBootApplicationController applicationController = ctx.getBean(CamelSpringBootApplicationController.class);
         applicationController.run();
-	    
+
     }
 }
 ```

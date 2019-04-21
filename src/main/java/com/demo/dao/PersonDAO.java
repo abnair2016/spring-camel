@@ -1,9 +1,9 @@
 package com.demo.dao;
 
+import com.demo.model.Person;
+
 import java.util.Collection;
 import java.util.List;
-
-import com.demo.model.Person;
 
 public interface PersonDAO {
 
@@ -14,7 +14,7 @@ public interface PersonDAO {
     void removePerson(Long id);
 
     Person save(final Person person);
-    
+
     void save(final List<Person> people);
 
     Person update(final Person person);

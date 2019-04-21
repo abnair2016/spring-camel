@@ -13,6 +13,6 @@ public class SpringCamelApplication {
 
         CamelSpringBootApplicationController applicationController = ctx.getBean(CamelSpringBootApplicationController.class);
         applicationController.run();
-	    
+
     }
 }
